@@ -109,148 +109,345 @@ async function fetchSheetData() {
     }
 }
 
-// Populates the drop downs on the register view screen
-function renderPOSDropdowns() {
-    const itemSel = document.getElementById("matrix-item-select");
-    if (!itemSel) return;
+// In-Memory Global Transaction Cart Array Storage
+let transactionCart = [];
 
-    itemSel.innerHTML = "";
+// Renders options into the selection dropdown elements
+function renderPOSDropdown() {
+    const select = document.getElementById("matrix-item-select");
+    if (!select) return;
+
+    // Preserve the clean layout template prompt
+    select.innerHTML = '<option value="">-- Select Print Item --</option>';
 
     appData.forEach(item => {
-        // Build an explicit visual label representing the unique configuration matrix row
-        const labelText = `${item.print_type} | ${item.color_category} | ${item.description} [Size: ${item.paper_size}]`;
-        const basePrice = parseFloat(item.price) || 0;
+        const option = document.createElement("option");
+        option.value = item.id;
         
-        itemSel.innerHTML += `<option value="${item.id}">₱${basePrice.toFixed(2)} - ${labelText}</option>`;
+        // Formats price to decimals cleanly (e.g., ₱2.00)
+        const itemPrice = parseFloat(item.price) || 0;
+        const formattedPrice = `₱${itemPrice.toFixed(2)}`;
+
+        // UPDATED: Replaced [ID: X] with the price format at the front
+        option.innerText = `${formattedPrice} - ${item.print_type} (${item.color_category}, ${item.paper_size})`;
+        select.appendChild(option);
     });
 }
 
-// Calculates dynamic totals with tier-break discounts instantly
+// Controls the individual single-item selection preview box field parameters
 function calculateLivePrice() {
-    const itemSelect = document.getElementById("matrix-item-select");
-    if (!itemSelect || !itemSelect.value) {
-        // Safe defaults if sheet hasn't loaded data yet
-        document.getElementById("summary-base").innerText = "₱0.00";
-        document.getElementById("summary-discount").innerText = "No discount applied";
-        document.getElementById("summary-total").innerText = "₱0.00";
+    const itemId = document.getElementById("matrix-item-select").value;
+    const previewInput = document.getElementById("unit-price-preview");
+    if (!previewInput) return;
+
+    const matchedItem = appData.find(i => String(i.id) === String(itemId));
+    if (matchedItem) {
+        const price = parseFloat(matchedItem.price) || 0;
+        previewInput.value = `₱${price.toFixed(2)}`;
+    } else {
+        previewInput.value = "₱0.00";
+    }
+}
+
+// NEW: Adds configured element variables to the global multi-item array matrix
+function addItemToCart() {
+    const itemId = document.getElementById("matrix-item-select").value;
+    const qtyInput = document.getElementById("order-qty");
+    const qty = parseInt(qtyInput.value) || 0;
+
+    if (!itemId) {
+        alert("Please choose a valid Print print item.");
+        return;
+    }
+    if (qty <= 0) {
+        alert("Quantity must be 1 or greater.");
         return;
     }
 
-    const itemId = itemSelect.value;
-    const qty = parseInt(document.getElementById("order-qty").value) || 0;
+    const matchedItem = appData.find(i => String(i.id) === String(itemId));
+    if (!matchedItem) return;
 
-    // 1. Parse your new manual discount text input field (defaults to 0 if empty/non-numeric)
+    const basePrice = parseFloat(matchedItem.price) || 0;
+
+    // ADJUSTMENT: Check if the exact same item ID is already sitting in the cart
+    const existingCartItem = transactionCart.find(item => String(item.id) === String(itemId));
+
+    if (existingCartItem) {
+        // If it exists, add the new quantity to the existing quantity
+        existingCartItem.quantity += qty;
+        // Recalculate the subtotal for this item row
+        existingCartItem.subtotal = existingCartItem.quantity * existingCartItem.basePrice;
+    } else {
+        // If it's a completely new item, push it to the cart array normally
+        const itemTotal = basePrice * qty;
+        const productDesc = `${matchedItem.print_type} (${matchedItem.color_category}, ${matchedItem.paper_size})`;
+        
+        transactionCart.push({
+            id: matchedItem.id,
+            product: productDesc,
+            basePrice: basePrice,
+            quantity: qty,
+            subtotal: itemTotal
+        });
+    }
+
+    // Reset entry choices back to default guidelines
+    document.getElementById("matrix-item-select").value = "";
+    qtyInput.value = "1";
+    document.getElementById("unit-price-preview").value = "₱0.00";
+
+    // Update the layout view matrix and recalculate grand totals
+    renderCart();
+}
+
+// NEW: Wipes all current array variables to entirely cancel an open transaction
+function clearFullTransactionCart() {
+    if (transactionCart.length === 0) return; // Nothing to clear
+    
+    const confirmation = confirm("Are you sure you want to cancel this entire transaction and clear the cart?");
+    if (confirmation) {
+        transactionCart = []; // Empty memory array
+        
+        // Reset inputs
+        const discountInput = document.getElementById("custom-discount-input");
+        if (discountInput) discountInput.value = "";
+        
+        renderCart(); // Re-render empty placeholder layouts & zero out totals
+    }
+}
+
+// NEW: Removes an individual job position line object from the active checkout basket
+function removeItemFromCart(index) {
+    transactionCart.splice(index, 1);
+    renderCart();
+}
+
+// NEW: Renders the structured multi-item layout rows inside the costing panel card
+function renderCart() {
+    const container = document.getElementById("cart-items-container");
+    if (!container) return;
+
+    if (transactionCart.length === 0) {
+        container.innerHTML = '<p class="empty-cart-text">No items added to this transaction yet.</p>';
+        calculateCartTotals();
+        return;
+    }
+
+    container.innerHTML = "";
+    transactionCart.forEach((item, index) => {
+        const row = document.createElement("div");
+        row.className = "cart-item-row";
+        row.innerHTML = `
+            <div class="cart-item-info">
+                <span class="cart-item-title">${item.product}</span>
+                <span class="cart-item-meta">Qty: ${item.quantity} × ₱${item.basePrice.toFixed(2)}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-weight: 600;">₱${item.subtotal.toFixed(2)}</span>
+                <button type="button" onclick="removeItemFromCart(${index})" class="btn-delete-cart" title="Remove Item">✕</button>
+            </div>
+        `;
+        container.appendChild(row);
+    });
+
+    calculateCartTotals();
+}
+
+// NEW: Computes pricing structures over the full multi-item cart elements
+function calculateCartTotals() {
+    let subtotal = 0;
+    transactionCart.forEach(item => subtotal += item.subtotal);
+
     const discountInput = document.getElementById("custom-discount-input").value;
     let discountPercent = parseFloat(discountInput) || 0;
-
-    // Clamp the percentage strictly between 0% and 100%
     if (discountPercent < 0) discountPercent = 0;
     if (discountPercent > 100) discountPercent = 100;
 
-    const matchedItem = appData.find(i => String(i.id) === String(itemId));
-    const unitPrice = matchedItem ? parseFloat(matchedItem.price) : 0;
+    const discountedTotal = subtotal * (1 - (discountPercent / 100));
 
-    // 2. Updated Cost Calculation Matrix
-    const baseCost = unitPrice * qty;
-    const discountMultiplier = discountPercent / 100;
-    const absoluteTotal = baseCost * (1 - discountMultiplier);
-
-    // 3. Update the UI fields (Notice summary-mods is removed)
-    document.getElementById("summary-base").innerText = `₱${unitPrice.toFixed(2)}`;
-    document.getElementById("summary-qty").innerText = qty.toLocaleString();
-    
-    // Updates the display indicator
-    const discountDisplay = document.getElementById("summary-discount");
-    if (discountDisplay) {
-        discountDisplay.innerText = discountPercent > 0 ? `${discountPercent}%` : "0%";
-    }
-
-    document.getElementById("summary-total").innerText = `₱${absoluteTotal.toFixed(2)}`;
+    document.getElementById("summary-subtotal").innerText = `₱${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    document.getElementById("summary-total").innerText = `₱${discountedTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-// Populates the editable backend config console data rows
-function renderAdminDashboard() {
+// UPDATED: Dispatches all added items back-to-back under a matching Order ID link
+async function submitOrder() {
+    if (transactionCart.length === 0) {
+        alert("Cannot process checkout transaction: Your order cart is empty.");
+        return;
+    }
+
+    updateStatus("busy", "Logging transaction data...");
+
+    // 1. Generate ONE absolute unified Order ID for the whole transaction group
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2);               
+    const mm = String(now.getMonth() + 1).padStart(2, '0');       
+    const hh = String(now.getHours()).padStart(2, '0');           
+    const mins = String(now.getMinutes()).padStart(2, '0');       
+    const ss = String(now.getSeconds()).padStart(2, '0');         
+    const sharedOrderId = `P2P-${yy}${mm}${hh}${mins}${ss}`;
+
+    // Get the global transaction discount rate to distribute proportionally among line rows
+    const discountPercent = parseFloat(document.getElementById("custom-discount-input").value) || 0;
+
+    let submissionSuccess = true;
+
+    // 2. Loop through every single cart object and append rows to Google Sheets
+    for (const item of transactionCart) {
+        // Compute individual row total proportional value after discount
+        const calculatedRowTotalPaid = item.subtotal * (1 - (discountPercent / 100));
+
+        const payload = {
+            action: "addSale",
+            orderId: sharedOrderId, 
+            product: item.product,
+            basePrice: item.basePrice,
+            quantity: item.quantity,
+            totalPaid: calculatedRowTotalPaid
+        };
+
+        // Handle simulation/mock context boundary checks seamlessly
+        if (API_URL === "APP_SCRIPT_URL_PLACEHOLDER" || API_URL.includes("MOCK_CONTEXT")) {
+            console.log("Mock submission context line row logged: ", payload);
+            continue;
+        }
+
+        try {
+            await fetch(API_URL, {
+                method: 'POST',
+                redirect: 'follow',
+                body: JSON.stringify(payload)
+            });
+        } catch(e) { 
+            console.error("Row log error context: ", e);
+            submissionSuccess = false;
+        }
+    }
+
+    // 3. Clear data configurations on final execution response
+    updateStatus("ready", "Connected");
+
+    if (submissionSuccess) {
+        // Build the informative text string matching what you had before
+        const briefDetails = `Saved ${transactionCart.length} print job item(s) under Unified Order ID Link: ${sharedOrderId}`;
+        
+        // Wipe cart tracking arrays clean
+        transactionCart = [];
+        const discountInput = document.getElementById("custom-discount-input");
+        if (discountInput) discountInput.value = "";
+        renderCart();
+        
+        // NEW: Launch the themed popup instead of using alert()
+        showSuccessModal(briefDetails);
+    } else {
+        alert("Warning: Some line row entries failed pushing cleanly to your destination Google Sheet.");
+    }
+}
+
+// Generates layout itemizations dynamically inside control boards
+function renderPricingTable() {
     const tbody = document.getElementById("pricing-table-body");
     if (!tbody) return;
+
     tbody.innerHTML = "";
-    
     appData.forEach(item => {
-        tbody.innerHTML += `
-            <tr>
-                <td style="font-family: monospace; color: #9ca3af; font-size: 0.75rem;">${item.id}</td>
-                <td style="font-weight: 500;">${item.print_type || ''}</td>
-                <td><span class="badge badge-prod">${item.color_category || ''}</span></td>
-                <td>${item.description || ''}</td>
-                <td><span class="badge badge-attr">${item.paper_size || ''}</span></td>
-                <td><input type="number" step="0.01" id="input-${item.id}" value="${item.price}" class="table-input"></td>
-                <td><button onclick="savePriceInline('${item.id}')" class="btn btn-update">Update</button></td>
-            </tr>
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td><strong>${item.id}</strong></td>
+            <td><span class="badge">${item.print_type}</span></td>
+            <td>${item.color_category}</td>
+            <td class="text-muted" style="font-size: 0.813rem;">${item.description || 'No alternative stock material description notes configured.'}</td>
+            <td><code>${item.paper_size}</code></td>
+            <td>
+                <div class="input-group">
+                    <span class="input-group-text">₱</span>
+                    <input type="number" id="price-input-${item.id}" value="${item.price}" step="0.01" min="0" class="form-control" style="max-width: 100px;">
+                </div>
+            </td>
+            <td>
+                <button onclick="updatePriceField('${item.id}')" class="btn btn-update">Update</button>
+            </td>
         `;
+        tbody.appendChild(row);
     });
 }
 
-// Pushes updated price adjustments back up to GSheets row parameters
-async function savePriceInline(id) {
-    const newVal = parseFloat(document.getElementById(`input-${id}`).value);
-    const target = appData.find(i => i.id === id);
-    if (target) target.value = newVal;
+// Pushes localized price mutations upstream to master sheets environment 
+async function updatePriceField(id) {
+    const inputField = document.getElementById(`price-input-${id}`);
+    if (!inputField) return;
 
-    if (API_URL === "APP_SCRIPT_URL_PLACEHOLDER" || API_URL === "" || API_URL.includes("PLACEHOLDER")) { 
-        alert("Local matrix updated! (Provide your App Script URL link to execute remote writes)."); 
-        calculateLivePrice();
-        return; 
+    const parsedNewValue = parseFloat(inputField.value);
+    if (isNaN(parsedNewValue) || parsedNewValue < 0) {
+        alert("Please output a valid positive pricing entry standard.");
+        return;
     }
 
-    try {
-        await fetch(API_URL, {
-            method: 'POST',
-            redirect: 'follow',
-            body: JSON.stringify({ action: "updatePrice", id: id, newValue: newVal })
-        });
-        alert("Success! Master matrix synced.");
-        calculateLivePrice();
-    } catch (e) { 
-        alert("Network update drop occurred."); 
-    }
-}
-
-// Registers transaction payloads directly down into your explicit Sales sheet schema headers
-async function submitOrder() {
-    const itemId = document.getElementById("matrix-item-select").value;
-    const qty = document.getElementById("order-qty").value;
-    const price = document.getElementById("summary-total").innerText;
-    const randId = "ORD-" + Math.floor(100000 + Math.random() * 900000);
-
-    const matchedItem = appData.find(i => i.id === itemId);
-    const orderDetails = matchedItem ? `${matchedItem.print_type} (${matchedItem.color_category}, ${matchedItem.paper_size})` : "Custom Job";
+    updateStatus("busy", "Updating master pricing matrix...");
 
     const payload = {
-        action: "addSale",
-        orderId: randId,
-        product: orderDetails,
-        quantity: qty,
-        totalPaid: price
+        action: "updatePrice",
+        id: String(id),
+        newValue: parsedNewValue
     };
 
-    if (API_URL === "https://script.google.com/macros/s/AKfycbzYlZRBZ3MBVgk0NIIzKPk6xTemnQzzm6XWCbxH-atpyZM8kIXYc8hfDKyDxyCElHp3/exec") {
-        console.log("Mock submission context: ", payload);
-        alert(`POS Simulation Clear!\nItem: ${payload.product}\nQuantity: ${payload.quantity}\nOrder Code generated: ${payload.orderId}`);
+    if (API_URL === "APP_SCRIPT_URL_PLACEHOLDER") {
+        const itemIndex = appData.findIndex(i => String(i.id) === String(id));
+        if (itemIndex !== -1) appData[itemIndex].price = parsedNewValue;
+        renderPOSDropdown();
+        updateStatus("ready", "Connected");
+        alert(`[Simulation Mode Check] Mutated ID pricing structure to: ₱${parsedNewValue}`);
         return;
     }
 
     try {
-        await fetch(API_URL, {
+        const response = await fetch(API_URL, {
             method: 'POST',
             redirect: 'follow',
             body: JSON.stringify(payload)
         });
-        alert(`Transaction successfully processed & dispatched!\nSaved to 'Sales' tab under Order ID: ${randId}`);
-    } catch(e) { 
-        alert("Failed logging transaction schema to destination sheet."); 
+        
+        // Refetch and reinitialize frontend state variables automatically
+        await fetchDatabaseRows();
+        alert("Master data matrix parameters successfully written to remote sheets rows!");
+    } catch (error) {
+        console.error(error);
+        updateStatus("error", "Network sync handshake broken");
+        alert("Failed communicating target configuration adjustments upstream.");
     }
 }
 
-// UPDATE: Dark mode toggler function
+// Queries real-time parameters straight out from Spreadsheet source components
+async function fetchDatabaseRows() {
+    if (API_URL === "APP_SCRIPT_URL_PLACEHOLDER") {
+        // Fallback production simulation data
+        appData = [
+            { id: "101", print_type: "Document Print", color_category: "Black & White", description: "70gsm Bond Paper", paper_size: "A4 Short", price: 2.00 },
+            { id: "102", print_type: "Document Print", color_category: "Full CMYK Color", description: "80gsm Premium Bond", paper_size: "A4 Short", price: 5.00 },
+            { id: "201", print_type: "Photo Print", color_category: "High Gloss Color", description: "230gsm Premium Photo Stock", paper_size: "4R Size", price: 15.00 },
+            { id: "301", print_type: "Sticker Sheet", color_category: "Full CMYK Color", description: "Matte Vinyl Waterproof", paper_size: "A4 Size", price: 45.00 }
+        ];
+        renderPOSDropdown();
+        renderPricingTable();
+        updateStatus("ready", "Simulation Data Connected");
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}?action=getData`);
+        const jsonResult = await response.json();
+        
+        appData = jsonResult;
+        renderPOSDropdown();
+        renderPricingTable();
+        updateStatus("ready", "Connected");
+    } catch (err) {
+        console.error("Retrieval Matrix Error Context: ", err);
+        updateStatus("error", "Data load timeout failure");
+    }
+}
+
+// Alternates app appearance layouts 
 function toggleDarkMode() {
     const checkbox = document.getElementById('checkbox');
     const label = document.querySelector('.switch-label');
@@ -258,42 +455,62 @@ function toggleDarkMode() {
     if (checkbox.checked) {
         document.body.classList.add('dark-mode');
         localStorage.setItem('theme', 'dark');
-        label.innerText = '☀️ Mode';
+        if (label) label.innerText = '☀️ Mode';
     } else {
         document.body.classList.remove('dark-mode');
         localStorage.setItem('theme', 'light');
-        label.innerText = '🌙 Mode';
+        if (label) label.innerText = '🌙 Mode';
     }
 }
 
-// UPDATE: Added Real-time Clock Function
+// UPDATE: Real-time Clock Initialization
 function startLiveClock() {
     const clockEl = document.getElementById("live-clock");
     if (!clockEl) return;
 
     function updateTime() {
         const now = new Date();
-        
-        // Formats date nicely (e.g., "July 1, 2026, 4:24:00 PM")
         const options = { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric',
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit',
+            year: 'numeric', month: 'long', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
             hour12: true 
         };
-        
         clockEl.innerText = now.toLocaleString('en-US', options);
     }
-
-    // Run instantly on layout generation, then update every single second
     updateTime();
     setInterval(updateTime, 1000);
 }
 
-// Initial script execution sequences
+// NEW: Opens the themed success window and explicitly captures keyboard input focus
+function showSuccessModal(messageText) {
+    const modal = document.getElementById("success-modal");
+    const msgEl = document.getElementById("success-modal-message");
+    const okBtn = document.getElementById("success-modal-ok-btn");
+    
+    if (!modal || !okBtn) return;
+    
+    if (msgEl) msgEl.innerText = messageText;
+    
+    // Reveal modal frame element layer
+    modal.classList.remove("hidden");
+    
+    // Explicitly focus the OK button immediately so Spacebar/Enter closes it instantly
+    setTimeout(() => {
+        okBtn.focus();
+    }, 50);
+}
+
+// NEW: Closes the success modal and returns focus back to item entry fields
+function closeSuccessModal() {
+    const modal = document.getElementById("success-modal");
+    if (modal) modal.classList.add("hidden");
+    
+    // Refocus back onto item select menu to prepare for the next transaction loop automatically
+    const selectBox = document.getElementById("matrix-item-select");
+    if (selectBox) selectBox.focus();
+}
+
+// Entry lifecycle attachment systems
 document.addEventListener("DOMContentLoaded", () => {
     const checkbox = document.getElementById('checkbox');
     const label = document.querySelector('.switch-label');
@@ -304,13 +521,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (label) label.innerText = '☀️ Mode';
     }
 
-    // Initialize application templates
-    renderPOSDropdowns();
-    renderAdminDashboard();
-    
-    // UPDATE: Ignite the ticking background process for the live clock
     startLiveClock();
-    
-    // Run the spreadsheet remote pipeline call
-    fetchSheetData();
+    fetchDatabaseRows();
 });
