@@ -1,0 +1,406 @@
+/* Base Styles & Resets */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+body {
+    background-color: #f3f4f6;
+    font-family: system-ui, -apple-system, sans-serif;
+    min-height: 100-screen;
+    color: #374151;
+}
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+}
+.hidden {
+    display: none !important;
+}
+
+/* Navigation Bar */
+.navbar {
+    background-color: #1e293b;
+    color: #ffffff;
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+.nav-logo {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+.nav-buttons {
+    display: flex;
+    gap: 16px;
+}
+
+/* UI Layout Cards */
+.page-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+}
+@media (min-width: 1024px) {
+    .page-grid {
+        grid-template-columns: 2fr 1fr;
+    }
+}
+.card {
+    background: #ffffff;
+    padding: 24px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 8px;
+}
+
+/* Forms & Inputs */
+.form-group {
+    margin-bottom: 16px;
+}
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #4b5563;
+    margin-bottom: 4px;
+}
+.form-control {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background-color: #f9fafb;
+    font-size: 1rem;
+}
+.form-control:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+/* Summary Panel Box */
+.summary-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.summary-list {
+    margin: 24px 0;
+}
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    color: #4b5563;
+}
+.discount-text {
+    color: #d97706;
+    font-weight: 500;
+}
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 24px;
+}
+.total-label {
+    font-size: 1.125rem;
+    font-weight: 700;
+}
+.total-amount {
+    font-size: 1.875rem;
+    font-weight: 900;
+    color: #059669;
+}
+
+/* Buttons */
+.btn {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    transition: background-color 0.2s;
+}
+.btn-nav {
+    color: #ffffff;
+    background-color: #334155;
+}
+.btn-nav:hover {
+    background-color: #475569;
+}
+.active-nav {
+    background-color: #2563eb !important;
+}
+.btn-submit {
+    width: 100%;
+    background-color: #059669;
+    color: white;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 1.125rem;
+}
+.btn-submit:hover {
+    background-color: #047857;
+}
+.btn-update {
+    background-color: #eef2ff;
+    color: #4f46e5;
+    font-size: 0.875rem;
+}
+.btn-update:hover {
+    background-color: #e0e7ff;
+}
+
+/* Admin Dashboard Table */
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+.page-subtitle {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-bottom: 24px;
+}
+.table-container {
+    overflow-x: auto;
+}
+.pricing-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+.pricing-table th {
+    background-color: #f3f4f6;
+    padding: 12px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
+    text-transform: uppercase;
+    border-bottom: 2px solid #e5e7eb;
+}
+.pricing-table td {
+    padding: 12px;
+    border-bottom: 1px solid #f3f4f6;
+}
+.badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+.badge-prod { background-color: #dbeafe; color: #1e40af; }
+.badge-attr { background-color: #f3e8ff; color: #6b21a8; }
+.table-input {
+    width: 96px;
+    padding: 4px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    text-align: center;
+}
+
+/* UPDATE: Dark Mode overrides */
+body.dark-mode {
+    background-color: #0f172a;
+    color: #e2e8f0;
+}
+body.dark-mode .card {
+    background: #1e293b;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+body.dark-mode .card-title {
+    color: #f8fafc;
+    border-bottom-color: #334155;
+}
+body.dark-mode .form-label {
+    color: #94a3b8;
+}
+body.dark-mode .form-control, 
+body.dark-mode .table-input {
+    background-color: #334155;
+    border-color: #475569;
+    color: #f8fafc;
+}
+body.dark-mode .summary-item {
+    color: #94a3b8;
+}
+body.dark-mode .pricing-table th {
+    background-color: #334155;
+    color: #cbd5e1;
+    border-bottom-color: #475569;
+}
+body.dark-mode .pricing-table td {
+    border-bottom-color: #334155;
+}
+body.dark-mode .pricing-table tr:hover {
+    background-color: #334155;
+}
+body.dark-mode .btn-update {
+    background-color: #312e81;
+    color: #818cf8;
+}
+
+/* UPDATE: Toggle Switch Core Styling */
+.theme-switch-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-right: 8px;
+}
+.switch-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #cbd5e1;
+}
+.theme-switch {
+    display: inline-block;
+    height: 24px;
+    position: relative;
+    width: 48px;
+}
+.theme-switch input {
+    display: none;
+}
+.slider {
+    background-color: #475569;
+    bottom: 0;
+    cursor: pointer;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    transition: .4s;
+}
+.slider:before {
+    background-color: #fff;
+    bottom: 4px;
+    content: "";
+    height: 16px;
+    left: 4px;
+    position: absolute;
+    transition: .4s;
+    width: 16px;
+}
+input:checked + .slider {
+    background-color: #2563eb;
+}
+input:checked + .slider:before {
+    transform: translateX(24px);
+}
+.slider.round {
+    border-radius: 34px;
+}
+.slider.round:before {
+    border-radius: 50%;
+}
+
+/* UPDATE: Full-Width Status Bar Framework with Left-Right Split */
+.status-footer-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #ffffff;
+    border-top: 1px solid #e5e7eb;
+    padding: 10px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);
+    z-index: 1000;
+    font-size: 0.813rem;
+    font-weight: 600;
+}
+.status-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.status-label {
+    color: #4b5563;
+}
+.status-message {
+    color: #1f2937;
+}
+.status-right-clock {
+    color: #4b5563;
+    font-family: monospace; /* Keeps characters uniform as time ticks */
+    font-size: 0.875rem;
+}
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    transition: background-color 0.3s ease;
+}
+
+/* Status Dot Color Configurations */
+.dot.ready { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
+.dot.busy  { background-color: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+.dot.error { background-color: #ef4444; box-shadow: 0 0 8px #ef4444; }
+
+/* Dark Mode Overrides for Full-Width Status Footer */
+body.dark-mode .status-footer-bar {
+    background-color: #1e293b;
+    border-top-color: #334155;
+}
+body.dark-mode .status-label,
+body.dark-mode .status-right-clock {
+    color: #94a3b8;
+}
+body.dark-mode .status-message {
+    color: #f8fafc;
+}
+
+/* Custom Password Modal Window Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+.modal-box {
+    width: 100%;
+    max-width: 380px;
+    padding: 24px !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    animation: modalSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes modalSlideUp {
+    from {
+        transform: translateY(15px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}

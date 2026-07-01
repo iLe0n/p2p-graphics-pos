@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Grapphics POS</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <nav class="navbar">
+        <h1 class="nav-logo">P2P GRAPHICS POS</h1>
+        <div class="nav-buttons">
+            <div class="theme-switch-wrapper">
+                <span class="switch-label">🌙 Mode</span>
+                <label class="theme-switch" for="checkbox">
+                    <input type="checkbox" id="checkbox" onchange="toggleDarkMode()" />
+                    <div class="slider round"></div>
+                </label>
+            </div>
+            
+            <button onclick="switchPage('pos-page')" class="btn btn-nav active-nav">Register (POS)</button>
+            <button onclick="switchPage('admin-page')" class="btn btn-nav">Manage Pricing</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        
+        <div id="pos-page" class="page-grid">
+            <div class="card card-large">
+                <h2 class="card-title">New Print Job</h2>
+                
+                <div class="form-group">
+                    <label class="form-label">Select Print Matrix Item</label>
+                    <select id="matrix-item-select" onchange="calculateLivePrice()" class="form-control">
+                        </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Order Quantity</label>
+                    <input type="number" id="order-qty" value="1" min="1" oninput="calculateLivePrice()" class="form-control">
+                </div>
+            </div>
+
+            <div class="card card-small summary-card">
+                <div>
+                    <h2 class="card-title">Order Costing Summary</h2>
+                    <div class="summary-list">
+                        <div class="summary-item">
+                            <span>Base Unit Price:</span>
+                            <span id="summary-base">₱0.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Quantity:</span>
+                            <span id="summary-qty">0</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Discount:</span>
+                            <span id="summary-discount" style="font-weight:600; color:#10b981;">No discount applied</span>
+                        </div>
+                        
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label class="form-label" style="font-size: 0.75rem;">Manual Discount (%)</label>
+                            <input type="number" id="custom-discount-input" placeholder="No discount applied" min="0" max="100" oninput="calculateLivePrice()" class="form-control" style="padding: 6px 10px; font-size: 0.875rem;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="summary-checkout">
+                    <div class="total-row">
+                        <span class="total-label">Total Price:</span>
+                        <span id="summary-total" class="total-amount">₱0.00</span>
+                    </div>
+                    <button onclick="submitOrder()" class="btn btn-submit">
+                        COMPLETE SALE & LOG
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="admin-page" class="card hidden">
+            <h2 class="page-title">Live Sheet Configuration Dashboard</h2>
+            <p class="page-subtitle">Modify system parameters below. Changes push straight to your Google Spreadsheet backend.</p>
+            
+            <div class="table-container">
+                <table class="pricing-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Print Type</th>
+                            <th>Color Category</th>
+                            <th>Description / Material Specs</th>
+                            <th>Paper Size</th>
+                            <th>Price Matrix Item</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pricing-table-body">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+    
+    <div id="data-status-container" class="status-footer-bar">
+        <div class="status-left">
+            <span class="status-label">Data Status:</span>
+            <span id="status-dot" class="dot busy"></span>
+            <span id="status-text" class="status-message">Connecting...</span>
+        </div>
+        <div id="live-clock" class="status-right-clock"></div>
+    </div>
+
+    <div id="password-modal" class="modal-overlay hidden">
+        <div class="modal-box card card-small">
+            <h3 class="card-title" style="margin-bottom: 8px; text-align: center;">Security Verification</h3>
+            <p style="font-size: 0.813rem; color: #6b7280; margin-bottom: 16px; text-align: center;">
+                Enter administrator credentials to access pricing management console.
+            </p>
+            
+            <div class="form-group">
+                <input type="password" id="modal-password-input" placeholder="••••••••" class="form-control" style="text-align: center; font-size: 1.125rem; letter-spacing: 0.125em;">
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-top: 20px;">
+                <button onclick="cancelPasswordModal()" class="btn btn-update" style="background: #ef4444; flex: 1;">Cancel</button>
+                <button onclick="submitPasswordModal()" class="btn btn-submit" style="flex: 1; margin: 0; padding: 10px;">Verify</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
