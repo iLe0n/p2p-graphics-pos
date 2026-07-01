@@ -3,10 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3C!-- Money/Cash Note sliding out --%3E%3Crect x='18' y='34' width='28' height='22' rx='2' fill='%2310b981'/%3E%3Ccircle cx='32' cy='45' r='4' fill='%23047857'/%3E%3Cline x1='22' y1='39' x2='42' y2='39' stroke='%23047857' stroke-width='2' stroke-dasharray='2 2'/%3E%3Cline x1='22' y1='51' x2='42' y2='51' stroke='%23047857' stroke-width='2' stroke-dasharray='2 2'/%3E%3C!-- Main Printer Body Frame --%3E%3Cpath d='M10 24C10 20.6863 12.6863 18 16 18H48C51.3137 18 54 20.6863 54 24V38H10V24Z' fill='%23374151'/%3E%3C!-- Top Paper Tray Feed --%3E%3Cpath d='M20 6H44V18H20V6Z' fill='%239ca3af'/%3E%3C!-- Printer Front Panel Accents --%3E%3Crect x='14' y='32' width='36' height='4' rx='1' fill='%231f2937'/%3E%3Ccircle cx='48' cy='24' r='1.5' fill='%233b82f6'/%3E%3Ccircle cx='44' cy='24' r='1.5' fill='%2310b981'/%3E%3C/svg%3E">
     <title>P2P Grapphics POS</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    
+    <div id="master-lock-screen" class="modal-overlay" style="z-index: 99999; background: #111827; display: flex; align-items: center; justify-content: center; position: fixed; inset: 0;">
+        <div class="card card-small" style="max-width: 340px; width: 100%; text-align: center; border-top: 4px solid #2563eb; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
+            <div style="font-size: 2.5rem; margin-bottom: 8px;">🔐</div>
+            <h2 class="card-title" style="margin-bottom: 4px;">P2P Graphics POS</h2>
+            <p style="font-size: 0.813rem; color: #9ca3af; margin-bottom: 20px;">Authorized Access Personnel Only</p>
+            
+            <div class="form-group" style="margin-bottom: 16px; text-align: left;">
+                <label class="form-label" style="color: #d1d5db;">Enter System Master Passcode</label>
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input type="password" id="master-passcode-input" placeholder="••••••••" class="form-control" 
+                        style="text-align: center; font-size: 1.25rem; letter-spacing: 4px; padding: 10px 65px 10px 10px; background: #1f2937; color: white; border-color: #374151; width: 100%; box-sizing: border-box;"
+                        onkeydown="if(event.key === 'Enter') checkMasterPasscode()">
+                    
+                    <button id="peek-password-btn" title="Hold to peek passcode"
+                            onmousedown="togglePasswordVisibility(true)" 
+                            onmouseup="togglePasswordVisibility(false)" 
+                            onmouseleave="togglePasswordVisibility(false)"
+                            ontouchstart="event.preventDefault(); togglePasswordVisibility(true)"
+                            ontouchend="togglePasswordVisibility(false)"
+                            style="position: absolute; right: 12px; background: transparent; border: none; color: #6b7280; cursor: pointer; font-size: 0.688rem; font-weight: 700; letter-spacing: 1px; padding: 4px; margin: 0; line-height: 1; user-select: none; transition: color 0.15s ease;">
+                        PEEK
+                    </button>
+                </div>
+            </div>
+            
+            <button onclick="checkMasterPasscode()" class="btn btn-submit" style="width: 100%; margin: 0; background: #2563eb; padding: 10px;">
+                Unlock System
+            </button>
+            <p id="lock-screen-error" style="color: #ef4444; font-size: 0.75rem; margin-top: 10px; min-height: 16px; font-weight: 500;"></p>
+        </div>
+    </div>
 
     <nav class="navbar">
         <h1 class="nav-logo">P2P GRAPHICS POS</h1>
@@ -86,38 +119,58 @@
             </div>
         </div>
 
-        <div id="admin-page" class="card hidden">
-            <h2 class="page-title">Live Sheet Configuration Dashboard</h2>
-            <p class="page-subtitle">Modify system parameters below. Changes push straight to your Google Spreadsheet backend.</p>
-            
-            <div class="table-container">
+        <div id="admin-page" class="hidden">
+            <div class="card" style="overflow-x: auto; width: 100%;">
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2 class="card-title" style="margin: 0;">Master Pricing Matrix</h2>
+                    <button onclick="openSettingsModal()" title="Table View Settings" 
+                            style="background: transparent; border: none; font-size: 1.35rem; cursor: pointer; padding: 4px; line-height: 1; transition: transform 0.2s;">
+                        ⚙️
+                    </button>
+                </div>
+
                 <table class="pricing-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
+                            <th>Item ID</th>
                             <th>Print Type</th>
-                            <th>Color Category</th>
-                            <th>Description / Material Specs</th>
-                            <th>Paper Size</th>
-                            <th>Price Matrix Item</th>
+                            <th>Color Specs</th>
+                            <th>Description Stock Material</th>
+                            <th>Size Specs</th>
+                            <th>Unit Price</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody id="pricing-table-body">
                         </tbody>
                 </table>
+
+                <div id="table-pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 16px; font-size: 0.875rem; padding-top: 8px; border-top: 1px dashed #e5e7eb;">
+                    </div>
             </div>
         </div>
 
     </div>
     
     <div id="data-status-container" class="status-footer-bar">
-        <div class="status-left">
+        <div class="status-left" style="display: flex; align-items: center; gap: 8px;">
+            <button onclick="manualDatabaseRefresh()" id="manual-refresh-btn" title="Force Synchronize with Google Sheets" 
+                    style="background: transparent; border: none; cursor: pointer; font-size: 0.95rem; padding: 2px; margin: 0; display: inline-flex; align-items: center; justify-content: center; transition: transform 0.2s; line-height: 1;">
+                🔄
+            </button>
             <span class="status-label">Data Status:</span>
             <span id="status-dot" class="dot busy"></span>
             <span id="status-text" class="status-message">Connecting...</span>
         </div>
-        <div id="live-clock" class="status-right-clock"></div>
+        
+        <div class="status-right-clock" style="display: flex; align-items: center; gap: 10px;">
+            <span id="live-clock"></span>
+            <button onclick="manualLockTerminal()" id="manual-lock-btn" title="Lock System Terminal immediately" 
+                    style="background: transparent; border: none; cursor: pointer; font-size: 1rem; padding: 2px; margin: 0; display: inline-flex; align-items: center; justify-content: center; transition: transform 0.2s; line-height: 1;">
+                🔒
+            </button>
+        </div>
     </div>
 
     <div id="password-modal" class="modal-overlay hidden">
@@ -127,13 +180,46 @@
                 Enter administrator credentials to access pricing management console.
             </p>
             
-            <div class="form-group">
-                <input type="password" id="modal-password-input" placeholder="••••••••" class="form-control" style="text-align: center; font-size: 1.125rem; letter-spacing: 0.125em;">
+            <div class="form-group" style="margin-bottom: 8px;">
+                <div style="position: relative; display: flex; align-items: center; width: 100%;">
+                    <input type="password" id="modal-password-input" placeholder="••••••••" class="form-control" 
+                           style="text-align: center; font-size: 1.125rem; letter-spacing: 0.125em; padding-right: 65px; width: 100%; box-sizing: border-box;">
+                    
+                    <button id="peek-modal-password-btn" title="Hold to peek passcode"
+                            onmousedown="toggleModalPasswordVisibility(true)" 
+                            onmouseup="toggleModalPasswordVisibility(false)" 
+                            onmouseleave="toggleModalPasswordVisibility(false)"
+                            ontouchstart="event.preventDefault(); toggleModalPasswordVisibility(true)"
+                            ontouchend="toggleModalPasswordVisibility(false)"
+                            style="position: absolute; right: 12px; background: transparent; border: none; color: #6b7280; cursor: pointer; font-size: 0.688rem; font-weight: 700; letter-spacing: 1px; padding: 4px; margin: 0; line-height: 1; user-select: none; transition: color 0.15s ease;">
+                        PEEK
+                    </button>
+                </div>
             </div>
 
-            <div style="display: flex; gap: 12px; margin-top: 20px;">
-                <button onclick="cancelPasswordModal()" class="btn btn-update" style="background: #ef4444; flex: 1;">Cancel</button>
-                <button onclick="submitPasswordModal()" class="btn btn-submit" style="flex: 1; margin: 0; padding: 10px;">Verify</button>
+            <div id="modal-password-error" style="font-size: 0.813rem; color: #ef4444; font-weight: 600; text-align: center; min-height: 18px; margin-bottom: 8px;"></div>
+
+            <div style="display: flex; gap: 12px; margin-top: 12px;">
+                <button onclick="cancelPasswordModal()" class="btn btn-update" style="background: #ef4444; flex: 1; margin: 0;">Cancel</button>
+                <button onclick="submitPasswordModal()" class="btn btn-submit" style="flex: 1; margin: 0;">Verify</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirm-delete-modal" class="modal-overlay hidden">
+        <div class="modal-box card card-small" style="text-align: center; max-width: 400px;">
+            <div style="font-size: 3rem; margin-bottom: 12px;">🗑️</div>
+            <h3 class="card-title" style="margin-bottom: 8px; color: #ef4444;">Delete Stock Item?</h3>
+            <p id="delete-modal-message" style="font-size: 0.875rem; color: #6b7280; margin-bottom: 24px; line-height: 1.5;">
+                Are you sure you want to delete this item?
+            </p>
+            <div style="display: flex; gap: 12px;">
+                <button onclick="closeDeleteModal()" class="btn btn-update" style="background: #6b7280; color: white; margin: 0; flex: 1;">
+                    Cancel
+                </button>
+                <button id="confirm-delete-yes-btn" class="btn btn-submit" style="background: #ef4444; margin: 0; flex: 1;">
+                    Yes, Delete
+                </button>
             </div>
         </div>
     </div>
@@ -148,6 +234,43 @@
             <button id="success-modal-ok-btn" onclick="closeSuccessModal()" class="btn btn-submit" style="margin: 0; width: 100%; background: #10b981;">
                 OK (Press Enter)
             </button>
+        </div>
+    </div>
+
+    <div id="confirm-clear-modal" class="modal-overlay hidden">
+        <div class="modal-box card card-small" style="text-align: center; max-width: 400px;">
+            <div style="font-size: 3rem; margin-bottom: 12px;">⚠️</div>
+            <h3 class="card-title" style="margin-bottom: 8px;">Cancel Transaction?</h3>
+            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 24px; line-height: 1.5;">
+                Are you sure you want to clear all items from the cart? This action cannot be undone.
+            </p>
+            <div style="display: flex; gap: 12px;">
+                <button onclick="closeClearModal()" class="btn btn-update" style="background: #6b7280; color: white; margin: 0; flex: 1;">
+                    No, Keep Items
+                </button>
+                <button id="confirm-clear-yes-btn" onclick="executeClearCart()" class="btn btn-submit" style="background: #ef4444; margin: 0; flex: 1;">
+                    Yes, Clear Cart
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-config-modal" class="modal-overlay hidden">
+        <div class="modal-box card card-small" style="max-width: 360px;">
+            <h3 class="card-title" style="margin-bottom: 8px; text-align: center;">Display Preferences</h3>
+            <p style="font-size: 0.813rem; color: #6b7280; margin-bottom: 16px; text-align: center;">
+                Configure the maximum number of pricing matrix rows to display per page.
+            </p>
+            
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label" style="text-align: center; display: block;">Items Per Page Limit</label>
+                <input type="number" id="settings-per-page-input" min="1" step="1" class="form-control" style="text-align: center; font-size: 1.125rem; font-weight: 600;">
+            </div>
+
+            <div style="display: flex; gap: 12px;">
+                <button onclick="closeSettingsModal()" class="btn btn-update" style="background: #6b7280; color: white; margin: 0; flex: 1;">Cancel</button>
+                <button onclick="saveSettingsModalConfiguration()" class="btn btn-submit" style="background: #2563eb; margin: 0; flex: 1;">Save Limit</button>
+            </div>
         </div>
     </div>
 

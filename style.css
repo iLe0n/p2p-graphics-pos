@@ -477,3 +477,23 @@ body.dark-mode .modal-box {
 body.dark-mode #success-modal-message {
     color: #94a3b8 !important;
 }
+
+#manual-refresh-btn {
+    opacity: 0.75;
+    color: inherit; /* Inherits text color of your footer automatically */
+}
+
+#manual-refresh-btn:hover {
+    opacity: 1;
+    transform: scale(1.15); /* Subtle pop effect on hover */
+}
+
+#manual-lock-btn {
+    opacity: 0.75;
+    color: inherit;
+}
+
+#manual-lock-btn:hover {
+    opacity: 1;
+    transform: scale(1.15);
+}

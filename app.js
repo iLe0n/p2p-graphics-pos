@@ -1,10 +1,68 @@
+// SYSTEM SECURITY CREDENTIALS
+const MASTER_SYSTEM_PASSCODE = "P2PADMIN2026"; // Change this string value to your desired system password
+
+// Immediately evaluate authorization layer parameters as script initializes
+(function initializeSecurityGatekeeper() {
+    document.addEventListener("DOMContentLoaded", () => {
+        const isUnlocked = sessionStorage.getItem("p2p_pos_authorized") === "true";
+        const lockScreen = document.getElementById("master-lock-screen");
+        const passwordField = document.getElementById("master-passcode-input");
+        
+        if (isUnlocked) {
+            if (lockScreen) lockScreen.remove(); // Safely strip security barrier out entirely if verified
+        } else {
+            if (passwordField) {
+                setTimeout(() => {
+                    passwordField.focus(); // Snap focus directly into field for immediate keyboard entry
+                }, 100);
+            }
+        }
+    });
+})();
+
+// Evaluates user entry values against secure environment constants
+function checkMasterPasscode() {
+    const inputField = document.getElementById("master-passcode-input");
+    const errorEl = document.getElementById("lock-screen-error");
+    const lockScreen = document.getElementById("master-lock-screen");
+    
+    if (!inputField) return;
+    
+    const providedVal = inputField.value;
+    
+    if (providedVal === MASTER_SYSTEM_PASSCODE) {
+        // Store verification inside session memory flags
+        sessionStorage.setItem("p2p_pos_authorized", "true");
+        
+        // Dynamic clean fade exit
+        if (lockScreen) {
+            lockScreen.style.opacity = "0";
+            lockScreen.style.transition = "opacity 0.25s ease";
+            setTimeout(() => lockScreen.remove(), 250);
+        }
+    } else {
+        if (errorEl) errorEl.innerText = "Access Denied: Invalid Passcode Provided.";
+        inputField.value = "";
+        inputField.focus();
+        
+        // Clear error notification after a small reading window delay
+        setTimeout(() => {
+            if (errorEl) errorEl.innerText = "";
+        }, 3000);
+    }
+}
+
+
 // Paste your copied Google Web App URL deployment here
-const API_URL = "https://script.google.com/macros/s/AKfycbwEbDDpjNX0L5WjYC7WMbhSmWb6eONC1OWI3lV86uqtuTDb8XLUDM4AZXvW3qwiAe0V/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbw3CCtiGqHBXAt5HTYvMDlk_QNo_5TEmMZrAcpJ5k_F8LJl5Oq6d70utQAzsYpntQi_/exec";
 
 // Fallback demo dataset while Google Sheets finishes loading
 let appData = [];
 // Global memory state tracking where the nav engine wants to route next
 let intendedPageTarget = "pos-page";
+// State boundaries tracking matrix table pagination controls
+let currentMatrixPage = 1;
+let itemsPerPageLimit = 10; // Default fallback view threshold configuration
 
 // Helper function to dynamically alter status display variables
 function updateStatus(state, message) {
@@ -38,20 +96,48 @@ function executePageTransition(pageId) {
 
 // Closes verification screen without saving changes
 function cancelPasswordModal() {
-    document.getElementById("password-modal").classList.add("hidden");
+    const modal = document.getElementById("password-modal");
+    const inputField = document.getElementById("modal-password-input");
+    const errorField = document.getElementById("modal-password-error");
+    const peekBtn = document.getElementById("peek-modal-password-btn");
+
+    if (modal) modal.classList.add("hidden");
+    
+    if (inputField) {
+        inputField.value = "";
+        inputField.type = "password"; // Reset type mask safely
+        inputField.style.letterSpacing = "0.125em";
+    }
+    if (errorField) errorField.innerText = "";
+    if (peekBtn) {
+        peekBtn.innerText = "PEEK";
+        peekBtn.style.color = "#6b7280";
+    }
 }
 
 // Evaluates verification credential matrix values securely 
 function submitPasswordModal() {
-    const enteredPassword = document.getElementById("modal-password-input").value;
-    
+    const passwordInput = document.getElementById("modal-password-input");
+    const errorEl = document.getElementById("modal-password-error");
+    if (!passwordInput) return;
+
+    const enteredPassword = passwordInput.value;
+
     if (enteredPassword === "P2PAdmin2026") {
+        // Correct password -> close modal and navigate to admin view panel cleanly
+        if (errorEl) errorEl.innerText = "";
         document.getElementById("password-modal").classList.add("hidden");
         executePageTransition(intendedPageTarget);
     } else {
-        alert("Access Denied: Invalid credentials.");
-        document.getElementById("modal-password-input").value = "";
-        document.getElementById("modal-password-input").focus();
+        // NEW: Handles authentication failures completely within the inline panel
+        passwordInput.value = ""; // Wipe text context fields
+        
+        if (errorEl) {
+            errorEl.innerText = "❌ Invalid Password. Please try again.";
+        }
+        
+        // Retain focus on the password box so the clerk can start typing immediately
+        passwordInput.focus();
     }
 }
 
@@ -59,24 +145,29 @@ function submitPasswordModal() {
 function switchPage(pageId) {
     if (pageId === 'admin-page') {
         intendedPageTarget = 'admin-page';
-        
-        // Open custom theme modal and focus input field cleanly
         const modal = document.getElementById("password-modal");
         const passwordInput = document.getElementById("modal-password-input");
+        const errorEl = document.getElementById("modal-password-error");
+        
         if (modal && passwordInput) {
-            passwordInput.value = "";
+            if (errorEl) errorEl.innerText = ""; // Clear out stale error states
+            passwordInput.value = ""; // Clear string data inputs
             modal.classList.remove("hidden");
-            passwordInput.focus();
             
-            // Allow clicking Enter key inside text input field box to verify instantly
-            passwordInput.onkeydown = function(e) {
-                if (e.key === "Enter") submitPasswordModal();
+            // NEW: Add event listener so pressing Enter triggers the verification function
+            passwordInput.onkeydown = function(event) {
+                if (event.key === "Enter") {
+                    event.preventDefault(); // Stop standard browser behaviors
+                    submitPasswordModal();
+                }
             };
+            
+            setTimeout(() => {
+                passwordInput.focus();
+            }, 50);
         }
-        return; 
+        return;
     }
-
-    // Standard public page execution routing mechanics
     executePageTransition(pageId);
 }
 
@@ -129,7 +220,7 @@ function renderPOSDropdown() {
         const formattedPrice = `₱${itemPrice.toFixed(2)}`;
 
         // UPDATED: Replaced [ID: X] with the price format at the front
-        option.innerText = `${formattedPrice} - ${item.print_type} (${item.color_category}, ${item.paper_size})`;
+        option.innerText = `${formattedPrice} - ${item.description} (${item.paper_size})`;
         select.appendChild(option);
     });
 }
@@ -203,17 +294,45 @@ function addItemToCart() {
 // NEW: Wipes all current array variables to entirely cancel an open transaction
 function clearFullTransactionCart() {
     if (transactionCart.length === 0) return; // Nothing to clear
+
+    const modal = document.getElementById("confirm-clear-modal");
+    const yesBtn = document.getElementById("confirm-clear-yes-btn");
     
-    const confirmation = confirm("Are you sure you want to cancel this entire transaction and clear the cart?");
-    if (confirmation) {
-        transactionCart = []; // Empty memory array
-        
-        // Reset inputs
-        const discountInput = document.getElementById("custom-discount-input");
-        if (discountInput) discountInput.value = "";
-        
-        renderCart(); // Re-render empty placeholder layouts & zero out totals
-    }
+    if (!modal || !yesBtn) return;
+
+    // Reveal modal frame element layer
+    modal.classList.remove("hidden");
+
+    // Automatically focus the dangerous action button ("Yes, Clear Cart")
+    // Pressing Enter or Spacebar will immediately clear it
+    setTimeout(() => {
+        yesBtn.focus();
+    }, 50);
+}
+
+// NEW: Executes the clear action if the operator confirms
+function executeClearCart() {
+    transactionCart = []; // Empty memory array
+
+    // Reset inputs
+    const discountInput = document.getElementById("custom-discount-input");
+    if (discountInput) discountInput.value = "";
+
+    // Close modal window
+    closeClearModal();
+
+    // Re-render empty placeholder layouts & zero out totals
+    renderCart();
+}
+
+// NEW: Closes the confirmation modal safely without changing cart data
+function closeClearModal() {
+    const modal = document.getElementById("confirm-clear-modal");
+    if (modal) modal.classList.add("hidden");
+
+    // Return focus back onto item select menu to continue working smoothly
+    const selectBox = document.getElementById("matrix-item-select");
+    if (selectBox) selectBox.focus();
 }
 
 // NEW: Removes an individual job position line object from the active checkout basket
@@ -344,32 +463,332 @@ async function submitOrder() {
     }
 }
 
-// Generates layout itemizations dynamically inside control boards
+// Tracks row layout active edits
+let activeEditItemId = null;
+
 function renderPricingTable() {
     const tbody = document.getElementById("pricing-table-body");
+    const paginationControls = document.getElementById("table-pagination-controls");
     if (!tbody) return;
 
     tbody.innerHTML = "";
-    appData.forEach(item => {
-        const row = document.createElement("tr");
-        row.innerHTML = `
-            <td><strong>${item.id}</strong></td>
-            <td><span class="badge">${item.print_type}</span></td>
-            <td>${item.color_category}</td>
-            <td class="text-muted" style="font-size: 0.813rem;">${item.description || 'No alternative stock material description notes configured.'}</td>
-            <td><code>${item.paper_size}</code></td>
-            <td>
-                <div class="input-group">
-                    <span class="input-group-text">₱</span>
-                    <input type="number" id="price-input-${item.id}" value="${item.price}" step="0.01" min="0" class="form-control" style="max-width: 100px;">
-                </div>
-            </td>
-            <td>
-                <button onclick="updatePriceField('${item.id}')" class="btn btn-update">Update</button>
-            </td>
-        `;
-        tbody.appendChild(row);
+
+    // Calculate structural pagination slicing bounds metrics
+    const totalItemsCount = appData.length;
+    const totalPagesCount = Math.ceil(totalItemsCount / itemsPerPageLimit) || 1;
+    
+    // Ensure active page pointer doesn't fall out-of-bounds after deleting records
+    if (currentMatrixPage > totalPagesCount) {
+        currentMatrixPage = totalPagesCount;
+    }
+
+    const startIndex = (currentMatrixPage - 1) * itemsPerPageLimit;
+    const endIndex = startIndex + itemsPerPageLimit;
+    const paginatedItemsList = appData.slice(startIndex, endIndex);
+
+    // 1. Loop and display sliced dataset records matching the current page
+    paginatedItemsList.forEach(item => {
+        const tr = document.createElement("tr");
+        const isEditing = (String(item.id) === String(activeEditItemId));
+
+        if (isEditing) {
+            tr.style.backgroundColor = "rgba(245, 158, 11, 0.05)";
+            tr.innerHTML = `
+                <td><strong>${item.id}</strong></td>
+                <td><input type="text" id="edit-type-${item.id}" value="${item.print_type || ''}" class="form-control" style="padding: 4px; margin: 0;"></td>
+                <td><input type="text" id="edit-color-${item.id}" value="${item.color_category || ''}" class="form-control" style="padding: 4px; margin: 0;"></td>
+                <td><input type="text" id="edit-desc-${item.id}" value="${item.description || ''}" class="form-control" style="padding: 4px; margin: 0;"></td>
+                <td><input type="text" id="edit-size-${item.id}" value="${item.paper_size || ''}" class="form-control" style="padding: 4px; margin: 0;"></td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <span>₱</span>
+                        <input type="number" step="0.01" min="0" id="edit-price-${item.id}" value="${parseFloat(item.price).toFixed(2)}" class="form-control" style="width: 80px; padding: 4px; margin: 0;">
+                    </div>
+                </td>
+                <td>
+                    <div style="display: inline-flex; gap: 4px; align-items: center;">
+                        <button onclick="saveInlineRowChanges('${item.id}')" title="Save Changes" 
+                                style="margin: 0; background: #10b981; color: white; border: 1px solid #059669; border-radius: 4px; padding: 6px 10px; font-size: 1rem; cursor: pointer; line-height: 1.2;">
+                            💾
+                        </button>
+                        <button onclick="cancelRowEditing()" title="Cancel" 
+                                style="margin: 0; background: #6b7280; color: white; border: 1px solid #4b5563; border-radius: 4px; padding: 6px 10px; font-size: 1rem; cursor: pointer; line-height: 1.2;">
+                            ❌
+                        </button>
+                    </div>
+                </td>
+            `;
+        } else {
+            tr.innerHTML = `
+                <td><strong>${item.id}</strong></td>
+                <td>${item.print_type}</td>
+                <td>${item.color_category}</td>
+                <td>${item.description || ''}</td>
+                <td>${item.paper_size}</td>
+                <td>₱${parseFloat(item.price).toFixed(2)}</td>
+                <td>
+                    <div style="display: inline-flex; gap: 4px; align-items: center;">
+                        <button onclick="enterRowEditMode('${item.id}')" class="btn btn-update" title="Edit Item" 
+                                style="margin: 0; padding: 6px 10px; font-size: 1rem; background: #f59e0b; color: white; border-color: #d97706; cursor: pointer; line-height: 1.2;">
+                            ✏️
+                        </button>
+                        <button onclick="deleteMatrixItemRow('${item.id}', '${item.print_type}')" title="Delete Item" 
+                                style="margin: 0; background: #ef4444; color: white; border: 1px solid #dc2626; border-radius: 4px; padding: 6px 10px; font-size: 1rem; cursor: pointer; line-height: 1.2;">
+                            🗑️
+                        </button>
+                    </div>
+                </td>
+            `;
+        }
+        tbody.appendChild(tr);
     });
+
+    // 2. Append the entry creation box row directly beneath the current paginated records list
+    const formTr = document.createElement("tr");
+    formTr.style.backgroundColor = "rgba(37, 99, 235, 0.06)";
+    
+    formTr.innerHTML = `
+        <td><input type="text" id="new-item-id" placeholder="ID" class="form-control" style="padding: 4px; margin: 0; min-width: 60px;"></td>
+        <td><input type="text" id="new-print-type" placeholder="Print Type" class="form-control" style="padding: 4px; margin: 0;"></td>
+        <td><input type="text" id="new-color-cat" placeholder="Color Specs" class="form-control" style="padding: 4px; margin: 0;"></td>
+        <td><input type="text" id="new-description" placeholder="Description/Material" class="form-control" style="padding: 4px; margin: 0;"></td>
+        <td><input type="text" id="new-paper-size" placeholder="Size Specs" class="form-control" style="padding: 4px; margin: 0;"></td>
+        <td>
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <span>₱</span>
+                <input type="number" step="0.01" min="0" id="new-base-price" placeholder="0.00" class="form-control" style="padding: 4px; margin: 0; width: 80px;">
+            </div>
+        </td>
+        <td>
+            <button onclick="submitInlineNewItem()" class="btn btn-submit" title="Save New Stock Item" style="margin: 0; background: #10b981; padding: 6px 12px; font-size: 1.1rem;">
+                💾
+            </button>
+        </td>
+    `;
+    tbody.appendChild(formTr);
+
+    // 3. Render the dynamic Pagination Button Controls layout area
+    if (paginationControls) {
+        if (totalItemsCount <= itemsPerPageLimit) {
+            // Hide pagination controls entirely if all records fit comfortably on one page
+            paginationControls.innerHTML = "";
+            paginationControls.style.borderTop = "none";
+        } else {
+            paginationControls.style.borderTop = "1px dashed #e5e7eb";
+            paginationControls.innerHTML = `
+                <button onclick="changeMatrixPage(${currentMatrixPage - 1})" ${currentMatrixPage === 1 ? 'disabled' : ''} 
+                        style="padding: 4px 10px; background: white; border: 1px solid #d1d5db; border-radius: 4px; cursor: pointer; opacity: ${currentMatrixPage === 1 ? 0.4 : 1};">
+                    ◀ Prev
+                </button>
+                <span style="font-weight: 500; color: #374151;">Page <strong>${currentMatrixPage}</strong> of <strong>${totalPagesCount}</strong> <span style="color: #9ca3af; font-weight: normal; margin-left: 4px;">(${totalItemsCount} total items)</span></span>
+                <button onclick="changeMatrixPage(${currentMatrixPage + 1})" ${currentMatrixPage === totalPagesCount ? 'disabled' : ''} 
+                        style="padding: 4px 10px; background: white; border: 1px solid #d1d5db; border-radius: 4px; cursor: pointer; opacity: ${currentMatrixPage === totalPagesCount ? 0.4 : 1};">
+                    Next ▶
+                </button>
+            `;
+        }
+    }
+}
+
+// Handler function to safely update page indicators
+function changeMatrixPage(targetPageNumber) {
+    currentMatrixPage = targetPageNumber;
+    cancelRowEditing(); // Cleanly exit active row edit inputs state parameters on step navigation shifts
+}
+
+// NEW: Submits modified values for an existing row upstream to Google Sheets
+async function saveInlineRowChanges(id) {
+    const typeVal = document.getElementById(`edit-type-${id}`).value.trim();
+    const colorVal = document.getElementById(`edit-color-${id}`).value.trim();
+    const descVal = document.getElementById(`edit-desc-${id}`).value.trim();
+    const sizeVal = document.getElementById(`edit-size-${id}`).value.trim();
+    const priceVal = parseFloat(document.getElementById(`edit-price-${id}`).value) || 0;
+
+    if (!typeVal || !colorVal || !sizeVal) {
+        alert("Validation Error: Product details cannot be left blank.");
+        return;
+    }
+
+    updateStatus("busy", "Updating matrix row properties...");
+
+    const payload = {
+        action: "updateFullItem",
+        id: id,
+        print_type: typeVal,
+        color_category: colorVal,
+        description: descVal,
+        paper_size: sizeVal,
+        price: priceVal
+    };
+
+    if (API_URL === "APP_SCRIPT_URL_PLACEHOLDER") {
+        // Handle mock data simulation
+        const idx = appData.findIndex(item => String(item.id) === String(id));
+        if (idx !== -1) appData[idx] = payload;
+        activeEditItemId = null;
+        renderPOSDropdown();
+        renderPricingTable();
+        updateStatus("ready", "Simulation Connected");
+        return;
+    }
+
+    try {
+        await fetch(API_URL, {
+            method: 'POST',
+            redirect: 'follow',
+            body: JSON.stringify(payload)
+        });
+        
+        activeEditItemId = null; // Reset editing state
+        await fetchDatabaseRows(); // Re-fetch fully refreshed data
+    } catch (error) {
+        console.error("Full item update network exception: ", error);
+        updateStatus("error", "Network sync broken");
+        alert("Failed communicating target row configuration adjustments upstream.");
+    }
+}
+
+// Global placeholder to store row data while the modal is open
+let pendingDeleteItemId = null;
+
+// UPDATED: Opens the themed verification modal window instead of using browser confirm()
+function deleteMatrixItemRow(id, label) {
+    pendingDeleteItemId = id; // Store target context references
+
+    const modal = document.getElementById("confirm-delete-modal");
+    const messageEl = document.getElementById("delete-modal-message");
+    const yesBtn = document.getElementById("confirm-delete-yes-btn");
+    
+    if (!modal || !yesBtn) return;
+
+    if (messageEl) {
+        messageEl.innerText = `Are you absolutely sure you want to permanently remove [ID: ${id}] "${label}" from your live spreadsheet database?`;
+    }
+
+    // Set up the confirmation button's click behavior dynamically for this specific item
+    yesBtn.onclick = function() {
+        executeDeleteRowAction(id);
+    };
+
+    // Reveal modal frame element layer
+    modal.classList.remove("hidden");
+
+    // Automatically focus the dangerous action button ("Yes, Delete") for quick keyboard workflow
+    setTimeout(() => {
+        yesBtn.focus();
+    }, 50);
+}
+
+// NEW: Processes the actual network erasure execution sequence
+async function executeDeleteRowAction(id) {
+    closeDeleteModal();
+    updateStatus("busy", "Removing matrix row from database...");
+
+    const payload = {
+        action: "deleteItem",
+        id: id
+    };
+
+    if (API_URL === "APP_SCRIPT_URL_PLACEHOLDER") {
+        appData = appData.filter(item => String(item.id) !== String(id));
+        renderPOSDropdown();
+        renderPricingTable();
+        updateStatus("ready", "Simulation Connected");
+        return;
+    }
+
+    try {
+        await fetch(API_URL, {
+            method: 'POST',
+            redirect: 'follow',
+            body: JSON.stringify(payload)
+        });
+        
+        await fetchDatabaseRows(); // Refresh dataset arrays instantly
+    } catch (error) {
+        console.error("Delete operation exception network trace: ", error);
+        updateStatus("error", "Handshake broken");
+        alert("Failed communicating target data erasure context adjustments upstream.");
+    }
+}
+
+// NEW: Closes the custom delete confirmation modal safely
+function closeDeleteModal() {
+    const modal = document.getElementById("confirm-delete-modal");
+    if (modal) modal.classList.add("hidden");
+    pendingDeleteItemId = null;
+}
+
+// Sets the target row ID to editing mode and re-renders
+function enterRowEditMode(id) {
+    activeEditItemId = id;
+    renderPricingTable();
+}
+
+// Cancels out of editing state cleanly
+function cancelRowEditing() {
+    activeEditItemId = null;
+    renderPricingTable();
+}
+
+// UPDATED: Submits data pulled directly out from the spreadsheet bottom inline row parameters
+async function submitInlineNewItem() {
+    const idInput = document.getElementById("new-item-id");
+    const typeInput = document.getElementById("new-print-type");
+    const colorInput = document.getElementById("new-color-cat");
+    const sizeInput = document.getElementById("new-paper-size");
+    const descInput = document.getElementById("new-description");
+    const priceInput = document.getElementById("new-base-price");
+
+    const id = idInput.value.trim();
+    const price = parseFloat(priceInput.value) || 0;
+
+    // Direct validation checks
+    if (!id || !typeInput.value.trim() || !colorInput.value.trim() || !sizeInput.value.trim() || !priceInput.value) {
+        alert("Validation Error: Please fill in all item properties completely before saving.");
+        return;
+    }
+
+    const checkDuplicate = appData.find(item => String(item.id) === String(id));
+    if (checkDuplicate) {
+        alert(`Configuration Error: An item with ID [ ${id} ] already exists.`);
+        return;
+    }
+
+    updateStatus("busy", "Adding item inline directly to sheet...");
+
+    const payload = {
+        action: "addItem",
+        id: id,
+        print_type: typeInput.value.trim(),
+        color_category: colorInput.value.trim(),
+        paper_size: sizeInput.value.trim(),
+        description: descInput.value.trim() || "No alternative description notes configured.",
+        price: price
+    };
+
+    if (API_URL === "APP_SCRIPT_URL_PLACEHOLDER") {
+        appData.push(payload);
+        renderPOSDropdown();
+        renderPricingTable();
+        updateStatus("ready", "Simulation Connected");
+        return;
+    }
+
+    try {
+        await fetch(API_URL, {
+            method: 'POST',
+            redirect: 'follow',
+            body: JSON.stringify(payload)
+        });
+        
+        // Refresh local memory and table components entirely
+        await fetchDatabaseRows();
+    } catch (error) {
+        console.error("Inline save exception trace: ", error);
+        updateStatus("error", "Handshake execution broken");
+        alert("Failed communicating target configuration adjustments upstream.");
+    }
 }
 
 // Pushes localized price mutations upstream to master sheets environment 
@@ -508,6 +927,181 @@ function closeSuccessModal() {
     // Refocus back onto item select menu to prepare for the next transaction loop automatically
     const selectBox = document.getElementById("matrix-item-select");
     if (selectBox) selectBox.focus();
+}
+
+// NEW: Opens display limit popup setting focus metrics safely
+function openSettingsModal() {
+    const modal = document.getElementById("settings-config-modal");
+    const inputField = document.getElementById("settings-per-page-input");
+    if (!modal || !inputField) return;
+
+    inputField.value = itemsPerPageLimit;
+    modal.classList.remove("hidden");
+
+    setTimeout(() => {
+        inputField.focus();
+        inputField.select();
+    }, 50);
+}
+
+// NEW: Closes the layout setting modal configuration view safely
+function closeSettingsModal() {
+    const modal = document.getElementById("settings-config-modal");
+    if (modal) modal.classList.add("hidden");
+}
+
+// NEW: Saves pagination variables resetting tracking index pointers securely
+function saveSettingsModalConfiguration() {
+    const inputField = document.getElementById("settings-per-page-input");
+    if (!inputField) return;
+
+    const parsedLimit = parseInt(inputField.value, 10);
+    if (isNaN(parsedLimit) || parsedLimit < 1) {
+        alert("Configuration Input Error: Please supply a valid row threshold number count of 1 or greater.");
+        return;
+    }
+
+    itemsPerPageLimit = parsedLimit;
+    currentMatrixPage = 1; // Always snap back to page 1 safely to protect slicing indices boundary rules
+    
+    closeSettingsModal();
+    renderPricingTable(); // Instantly trigger the table rendering system
+}
+
+// NEW: Triggers a full manual pull request syncing POS dropdown choices & Pricing matrices
+async function manualDatabaseRefresh() {
+    const refreshBtn = document.getElementById("manual-refresh-btn");
+    
+    // Visual feedback: spin the refresh icon while processing
+    if (refreshBtn) {
+        refreshBtn.style.transform = "rotate(360deg)";
+        refreshBtn.style.transition = "transform 0.6s ease";
+    }
+
+    updateStatus("busy", "Synchronizing spreadsheet entries...");
+    
+    // Reset any open row edit properties to prevent formatting conflicts
+    if (typeof activeEditItemId !== 'undefined') {
+        activeEditItemId = null;
+    }
+
+    if (API_URL === "APP_SCRIPT_URL_PLACEHOLDER") {
+        // Mock Simulation mode behavior
+        setTimeout(() => {
+            if (refreshBtn) refreshBtn.style.transform = "rotate(0deg)";
+            renderPOSDropdown();
+            renderPricingTable();
+            updateStatus("ready", "Simulation Connected");
+        }, 500);
+        return;
+    }
+
+    try {
+        // Re-execute your global database pull routines
+        // This function fetches your spreadsheet data and calls renderPricingTable() + renderPOSDropdown()
+        await fetchDatabaseRows(); 
+        
+    } catch (error) {
+        console.error("Manual sync handshake broken: ", error);
+        updateStatus("error", "Network sync broken");
+    } finally {
+        // Reset animation layout strings safely
+        setTimeout(() => {
+            if (refreshBtn) {
+                refreshBtn.style.transition = "none";
+                refreshBtn.style.transform = "rotate(0deg)";
+            }
+        }, 600);
+    }
+}
+
+// NEW: Instantly logs out the operator, purges session storage tokens, and brings up the cover lock modal frame
+function manualLockTerminal() {
+    // 1. Invalidate system authorization token flags instantly
+    sessionStorage.removeItem("p2p_pos_authorized");
+
+    // 2. Safely verify if the overlay structure already exists to avoid redundant markup insertions
+    if (document.getElementById("master-lock-screen")) return;
+
+    // 3. Reconstruct and inject the secure gatekeeper modal frame directly to the viewport layer
+    const lockScreenModal = document.createElement("div");
+    lockScreenModal.id = "master-lock-screen";
+    lockScreenModal.className = "modal-overlay";
+    lockScreenModal.style.cssText = "z-index: 99999; background: #111827; display: flex; align-items: center; justify-content: center; position: fixed; inset: 0;";
+    
+    lockScreenModal.innerHTML = `
+        <div class="card card-small" style="max-width: 340px; width: 100%; text-align: center; border-top: 4px solid #2563eb; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
+            <div style="font-size: 2.5rem; margin-bottom: 8px;">🔐</div>
+            <h2 class="card-title" style="margin-bottom: 4px;">P2P Graphics POS</h2>
+            <p style="font-size: 0.813rem; color: #9ca3af; margin-bottom: 20px;">Authorized Access Personnel Only</p>
+            
+            <div class="form-group" style="margin-bottom: 16px; text-align: left;">
+                <label class="form-label" style="color: #d1d5db;">Enter System Master Passcode</label>
+                <input type="password" id="master-passcode-input" placeholder="••••••••" class="form-control" 
+                       style="text-align: center; font-size: 1.25rem; letter-spacing: 4px; padding: 10px; background: #1f2937; color: white; border-color: #374151;"
+                       onkeydown="if(event.key === 'Enter') checkMasterPasscode()">
+            </div>
+            
+            <button onclick="checkMasterPasscode()" class="btn btn-submit" style="width: 100%; margin: 0; background: #2563eb; padding: 10px;">
+                Unlock System
+            </button>
+            <p id="lock-screen-error" style="color: #ef4444; font-size: 0.75rem; margin-top: 10px; min-height: 16px; font-weight: 500;"></p>
+        </div>
+    `;
+
+    document.body.appendChild(lockScreenModal);
+
+    // 4. Force focus straight into input string arrays for direct keyboard inputs
+    setTimeout(() => {
+        const passwordField = document.getElementById("master-passcode-input");
+        if (passwordField) passwordField.focus();
+    }, 50);
+}
+
+// Toggles input masking type on mouse click-and-hold configurations (Minimal Text Style)
+function togglePasswordVisibility(shouldShowPlaintext) {
+    const passwordField = document.getElementById("master-passcode-input");
+    const peekBtn = document.getElementById("peek-password-btn");
+    if (!passwordField) return;
+
+    if (shouldShowPlaintext) {
+        passwordField.type = "text";
+        passwordField.style.letterSpacing = "normal"; // Clears dot-spacing constraints for readable text
+        if (peekBtn) {
+            peekBtn.innerText = "SHOW";
+            peekBtn.style.color = "#3b82f6"; // Dynamic highlight color while holding down
+        }
+    } else {
+        passwordField.type = "password";
+        passwordField.style.letterSpacing = "4px";    // Restores structural dot separation
+        if (peekBtn) {
+            peekBtn.innerText = "PEEK";
+            peekBtn.style.color = "#6b7280"; // Returns to baseline neutral gray
+        }
+    }
+}
+
+// NEW: Toggles input masking type on mouse click-and-hold for the admin matrix console entrance prompt
+function toggleModalPasswordVisibility(shouldShowPlaintext) {
+    const passwordField = document.getElementById("modal-password-input");
+    const peekBtn = document.getElementById("peek-modal-password-btn");
+    if (!passwordField) return;
+
+    if (shouldShowPlaintext) {
+        passwordField.type = "text";
+        passwordField.style.letterSpacing = "normal"; // Clears letter spacing so plaintext is completely readable
+        if (peekBtn) {
+            peekBtn.innerText = "SHOW";
+            peekBtn.style.color = "#3b82f6";          // Subtle blue highlight while holding down
+        }
+    } else {
+        passwordField.type = "password";
+        passwordField.style.letterSpacing = "0.125em"; // Restores your initial structural letter spacing rules
+        if (peekBtn) {
+            peekBtn.innerText = "PEEK";
+            peekBtn.style.color = "#6b7280";          // Returns to neutral fallback gray color
+        }
+    }
 }
 
 // Entry lifecycle attachment systems
