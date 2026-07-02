@@ -176,13 +176,13 @@
                     </div>
                     <div style="flex: 1; min-width: 260px;">
                         <label class="form-label" style="margin-bottom: 6px; display: block;">Filter by Sale Timestamp Range</label>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <input id="sales-timestamp-start-filter" type="datetime-local" class="form-control" onchange="updateSalesFilters()">
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                            <input id="sales-timestamp-start-filter" type="datetime-local" class="form-control" style="flex: 1 1 180px; min-width: 180px;" onchange="updateSalesFilters()">
                             <span style="color: #6b7280; font-size: 0.875rem;">to</span>
-                            <input id="sales-timestamp-end-filter" type="datetime-local" class="form-control" onchange="updateSalesFilters()">
+                            <input id="sales-timestamp-end-filter" type="datetime-local" class="form-control" style="flex: 1 1 180px; min-width: 180px;" onchange="updateSalesFilters()">
                         </div>
                     </div>
-                    <button onclick="clearSalesFilters()" class="btn btn-update" style="margin: 0;">Clear Filters</button>
+                    <button onclick="clearSalesFilters()" class="btn btn-update" style="margin: 0; width: 100%; max-width: 140px;">Clear Filters</button>
                 </div>
 
                 <table class="pricing-table">
