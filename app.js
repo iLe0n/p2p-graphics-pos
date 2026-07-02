@@ -1,5 +1,5 @@
 // SYSTEM SECURITY CREDENTIALS
-const MASTER_SYSTEM_PASSCODE = "P2PADMIN2026"; // Change this string value to your desired system password
+const MASTER_SYSTEM_PASSCODE = "p2p2026"; // Change this string value to your desired system password
 
 // Immediately evaluate authorization layer parameters as script initializes
 (function initializeSecurityGatekeeper() {
@@ -139,7 +139,7 @@ async function submitPasswordModal() {
 
     const enteredPassword = passwordInput.value;
 
-    if (enteredPassword === "a") {
+    if (enteredPassword === "p2p") {
         // Correct password -> close modal and navigate to admin view panel cleanly
         if (errorEl) errorEl.innerText = "";
         document.getElementById("password-modal").classList.add("hidden");
