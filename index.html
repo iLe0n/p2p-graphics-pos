@@ -54,6 +54,7 @@
             
             <button onclick="switchPage('pos-page')" class="btn btn-nav active-nav">Register (POS)</button>
             <button onclick="switchPage('admin-page')" class="btn btn-nav">Manage Pricing</button>
+            <button onclick="switchPage('admin-sales-page')" class="btn btn-nav">Manage Sales</button>
         </div>
     </nav>
 
@@ -147,6 +148,60 @@
                 </table>
 
                 <div id="table-pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 16px; font-size: 0.875rem; padding-top: 8px; border-top: 1px dashed #e5e7eb;">
+                    </div>
+            </div>
+        </div>
+
+        <div id="admin-sales-page" class="hidden">
+            <div class="card" style="overflow-x: auto; width: 100%;">
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2 class="card-title" style="margin: 0;">Manage Sales & Reports</h2>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button onclick="exportSalesTable()" title="Export current sales list" 
+                                style="background: transparent; border: none; font-size: 1.25rem; cursor: pointer; padding: 4px; line-height: 1; transition: transform 0.2s;">
+                            📤
+                        </button>
+                        <button onclick="openSettingsModal()" title="Table View Settings" 
+                                style="background: transparent; border: none; font-size: 1.35rem; cursor: pointer; padding: 4px; line-height: 1; transition: transform 0.2s;">
+                            ⚙️
+                        </button>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; align-items: end;">
+                    <div style="flex: 1; min-width: 220px;">
+                        <label class="form-label" style="margin-bottom: 6px; display: block;">Filter by Order or Product</label>
+                        <input id="sales-product-filter" type="text" class="form-control" placeholder="e.g. Short" oninput="updateSalesFilters()">
+                    </div>
+                    <div style="flex: 1; min-width: 260px;">
+                        <label class="form-label" style="margin-bottom: 6px; display: block;">Filter by Sale Timestamp Range</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input id="sales-timestamp-start-filter" type="datetime-local" class="form-control" onchange="updateSalesFilters()">
+                            <span style="color: #6b7280; font-size: 0.875rem;">to</span>
+                            <input id="sales-timestamp-end-filter" type="datetime-local" class="form-control" onchange="updateSalesFilters()">
+                        </div>
+                    </div>
+                    <button onclick="clearSalesFilters()" class="btn btn-update" style="margin: 0;">Clear Filters</button>
+                </div>
+
+                <table class="pricing-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Sale Timestamp</th>
+                            <th>Product</th>
+                            <th>Base Price</th>
+                            <th>Quantity</th>
+                            <th>Total Paid</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sales-table-body">
+                        </tbody>
+                </table>
+
+                <div id="sales-pagination-controls" style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 16px; font-size: 0.875rem; padding-top: 8px; border-top: 1px dashed #e5e7eb;">
                     </div>
             </div>
         </div>

@@ -54,10 +54,11 @@ function checkMasterPasscode() {
 
 
 // Paste your copied Google Web App URL deployment here
-const API_URL = "https://script.google.com/macros/s/AKfycbw3CCtiGqHBXAt5HTYvMDlk_QNo_5TEmMZrAcpJ5k_F8LJl5Oq6d70utQAzsYpntQi_/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwfVRUa6uQG4255lkdvTCZQMzz8ZUBaPi97TKw7MiCTPqvK8Ns030xnNJKs6hs1Jj-h/exec";
 
 // Fallback demo dataset while Google Sheets finishes loading
 let appData = [];
+let salesData = [];
 // Global memory state tracking where the nav engine wants to route next
 let intendedPageTarget = "pos-page";
 // State boundaries tracking matrix table pagination controls
@@ -80,9 +81,15 @@ function executePageTransition(pageId) {
     if (pageId === 'pos-page') {
         document.getElementById('pos-page').classList.remove('hidden');
         document.getElementById('admin-page').classList.add('hidden');
+        document.getElementById('admin-sales-page').classList.add('hidden');
     } else if (pageId === 'admin-page') {
         document.getElementById('pos-page').classList.add('hidden');
         document.getElementById('admin-page').classList.remove('hidden');
+        document.getElementById('admin-sales-page').classList.add('hidden');
+    } else if (pageId === 'admin-sales-page') {
+        document.getElementById('admin-sales-page').classList.remove('hidden');
+        document.getElementById('pos-page').classList.add('hidden');
+        document.getElementById('admin-page').classList.add('hidden');
     }
 
     document.querySelectorAll('.btn-nav').forEach(btn => {
@@ -115,19 +122,29 @@ function cancelPasswordModal() {
     }
 }
 
+// Refreshes the currently requested admin table data after access is granted
+async function refreshProtectedPageData(pageId) {
+    if (pageId === 'admin-page') {
+        await fetchDatabaseRows();
+    } else if (pageId === 'admin-sales-page') {
+        await fetchSalesRecords();
+    }
+}
+
 // Evaluates verification credential matrix values securely 
-function submitPasswordModal() {
+async function submitPasswordModal() {
     const passwordInput = document.getElementById("modal-password-input");
     const errorEl = document.getElementById("modal-password-error");
     if (!passwordInput) return;
 
     const enteredPassword = passwordInput.value;
 
-    if (enteredPassword === "P2PAdmin2026") {
+    if (enteredPassword === "a") {
         // Correct password -> close modal and navigate to admin view panel cleanly
         if (errorEl) errorEl.innerText = "";
         document.getElementById("password-modal").classList.add("hidden");
         executePageTransition(intendedPageTarget);
+        await refreshProtectedPageData(intendedPageTarget);
     } else {
         // NEW: Handles authentication failures completely within the inline panel
         passwordInput.value = ""; // Wipe text context fields
@@ -143,8 +160,8 @@ function submitPasswordModal() {
 
 // Handles switching tabs on the main navigation panel
 function switchPage(pageId) {
-    if (pageId === 'admin-page') {
-        intendedPageTarget = 'admin-page';
+    if (pageId === 'admin-page' || pageId === 'admin-sales-page') {
+        intendedPageTarget = pageId;
         const modal = document.getElementById("password-modal");
         const passwordInput = document.getElementById("modal-password-input");
         const errorEl = document.getElementById("modal-password-error");
@@ -463,6 +480,211 @@ async function submitOrder() {
     }
 }
 
+let currentSalesPage = 1;
+let salesProductFilter = "";
+let salesTimestampStartFilter = "";
+let salesTimestampEndFilter = "";
+
+function getFilteredSalesList() {
+    const salesList = salesData || [];
+    const productFilter = salesProductFilter.trim().toLowerCase();
+    const startFilter = salesTimestampStartFilter.trim();
+    const endFilter = salesTimestampEndFilter.trim();
+
+    return salesList.filter(sale => {
+        const productText = String(sale.product || "").toLowerCase();
+        const orderIdText = String(sale.order_id || "").toLowerCase();
+        const productMatch = !productFilter || productText.includes(productFilter) || orderIdText.includes(productFilter);
+
+        let timestampMatch = true;
+        if (startFilter || endFilter) {
+            const saleDate = sale.sale_ts ? new Date(sale.sale_ts) : null;
+            const startDate = startFilter ? new Date(startFilter) : null;
+            const endDate = endFilter ? new Date(endFilter) : null;
+
+            if (saleDate && !isNaN(saleDate.getTime())) {
+                const afterStart = !startDate || saleDate >= startDate;
+                const beforeEnd = !endDate || saleDate <= endDate;
+                timestampMatch = afterStart && beforeEnd;
+            } else {
+                timestampMatch = false;
+            }
+        }
+
+        return productMatch && timestampMatch;
+    });
+}
+
+function updateSalesFilters() {
+    const productInput = document.getElementById("sales-product-filter");
+    const startInput = document.getElementById("sales-timestamp-start-filter");
+    const endInput = document.getElementById("sales-timestamp-end-filter");
+
+    salesProductFilter = productInput ? productInput.value : "";
+    salesTimestampStartFilter = startInput ? startInput.value : "";
+    salesTimestampEndFilter = endInput ? endInput.value : "";
+    currentSalesPage = 1;
+    renderSalesTable();
+}
+
+function clearSalesFilters() {
+    const productInput = document.getElementById("sales-product-filter");
+    const startInput = document.getElementById("sales-timestamp-start-filter");
+    const endInput = document.getElementById("sales-timestamp-end-filter");
+
+    if (productInput) productInput.value = "";
+    if (startInput) startInput.value = "";
+    if (endInput) endInput.value = "";
+
+    salesProductFilter = "";
+    salesTimestampStartFilter = "";
+    salesTimestampEndFilter = "";
+    currentSalesPage = 1;
+    renderSalesTable();
+}
+
+function exportSalesTable() {
+    const rows = getFilteredSalesList();
+
+    if (!rows.length) {
+        alert("No sales records to export.");
+        return;
+    }
+
+    const header = ["Order ID", "Sale Timestamp", "Product", "Base Price", "Quantity", "Total Paid"];
+    const csvRows = [header.join(",")];
+
+    rows.forEach(sale => {
+        const values = [
+            `"${String(sale.order_id || "").replace(/"/g, '""')}"`,
+            `"${String(sale.sale_ts || "").replace(/"/g, '""')}"`,
+            `"${String(sale.product || "").replace(/"/g, '""')}"`,
+            parseFloat(sale.base_price || 0).toFixed(2),
+            parseInt(sale.quantity || 0, 10),
+            parseFloat(sale.total_pd || 0).toFixed(2)
+        ];
+        csvRows.push(values.join(","));
+    });
+
+    const csvContent = csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "sales-export.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function renderSalesTable() {
+    const tbody = document.getElementById("sales-table-body");
+    const paginationControls = document.getElementById("sales-pagination-controls");
+    if (!tbody) return;
+
+    tbody.innerHTML = "";
+
+    const filteredSalesList = getFilteredSalesList();
+
+    // Calculate structural pagination slicing bounds metrics
+    const totalItemsCount = filteredSalesList.length;
+    const totalPagesCount = Math.ceil(totalItemsCount / itemsPerPageLimit) || 1;
+    
+    // Ensure active page pointer doesn't fall out-of-bounds after deleting records
+    if (currentSalesPage > totalPagesCount) {
+        currentSalesPage = totalPagesCount;
+    }
+
+    const startIndex = (currentSalesPage - 1) * itemsPerPageLimit;
+    const endIndex = startIndex + itemsPerPageLimit;
+    const paginatedItemsList = filteredSalesList.slice(startIndex, endIndex);
+
+    // If no data exists, display a clean fallback placeholder row
+    if (totalItemsCount === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color: #6b7280; padding: 16px;">No matching transaction records found.</td></tr>`;
+        if (paginationControls) {
+            paginationControls.innerHTML = "";
+            paginationControls.style.borderTop = "none";
+        }
+        return;
+    }
+
+    // 1. Loop and display sliced dataset records matching the current page
+    paginatedItemsList.forEach(sale => {
+        const tr = document.createElement("tr");
+        
+        tr.innerHTML = `
+            <td><strong>${sale.order_id || 'N/A'}</strong></td>
+            <td>${
+            sale.sale_ts
+                ? (() => {
+                    const d = new Date(sale.sale_ts);
+
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    const yy = String(d.getFullYear()).slice(-2);
+                    const hh = String(d.getHours()).padStart(2, '0');
+                    const min = String(d.getMinutes()).padStart(2, '0');
+                    const ss = String(d.getSeconds()).padStart(2, '0');
+
+                    return `${mm}/${dd}/${yy} ${hh}:${min}:${ss}`;
+                })()
+                : 'N/A'
+            }</td>
+            <td>${sale.product || 'N/A'}</td>
+            <td>₱${parseFloat(sale.base_price || 0).toFixed(2)}</td>
+            <td>${sale.quantity || 0}</td>
+            <td>₱${parseFloat(sale.total_pd || 0).toFixed(2)}</td>
+            <td>
+                <div style="display: inline-flex; gap: 4px; align-items: center;">
+                    <button onclick="deleteSaleRecord('${sale.order_id}')" title="Delete Sale Record" 
+                            style="margin: 0; background: #ef4444; color: white; border: 1px solid #dc2626; border-radius: 4px; padding: 6px 10px; font-size: 1rem; cursor: pointer; line-height: 1.2;">
+                        🗑️
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // 2. Render the dynamic Pagination Button Controls layout area
+    if (paginationControls) {
+        if (totalItemsCount <= itemsPerPageLimit) {
+            // Hide pagination controls entirely if all records fit comfortably on one page
+            paginationControls.innerHTML = "";
+            paginationControls.style.borderTop = "none";
+        } else {
+            paginationControls.style.borderTop = "1px dashed #e5e7eb";
+            paginationControls.innerHTML = `
+                <button onclick="changeSalesPage(${currentSalesPage - 1})" ${currentSalesPage === 1 ? 'disabled' : ''} 
+                        style="padding: 4px 10px; background: white; border: 1px solid #d1d5db; border-radius: 4px; cursor: pointer; opacity: ${currentSalesPage === 1 ? 0.4 : 1};">
+                    ◀ Prev
+                </button>
+                <span style="font-weight: 500; color: #374151;">
+                    Page <strong>${currentSalesPage}</strong> of <strong>${totalPagesCount}</strong> 
+                    <span style="color: #9ca3af; font-weight: normal; margin-left: 4px;">(${totalItemsCount} matching sales)</span>
+                </span>
+                <button onclick="changeSalesPage(${currentSalesPage + 1})" ${currentSalesPage === totalPagesCount ? 'disabled' : ''} 
+                        style="padding: 4px 10px; background: white; border: 1px solid #d1d5db; border-radius: 4px; cursor: pointer; opacity: ${currentSalesPage === totalPagesCount ? 0.4 : 1};">
+                    Next ▶
+                </button>
+            `;
+        }
+    }
+}
+
+// 3. Companion function to switch pages inside the sales ledger
+function changeSalesPage(targetPage) {
+    const filteredSalesList = getFilteredSalesList();
+    const totalPagesCount = Math.ceil(filteredSalesList.length / itemsPerPageLimit) || 1;
+    
+    if (targetPage < 1 || targetPage > totalPagesCount) return;
+    
+    currentSalesPage = targetPage;
+    renderSalesTable();
+}
+
 // Tracks row layout active edits
 let activeEditItemId = null;
 
@@ -650,6 +872,7 @@ async function saveInlineRowChanges(id) {
 
 // Global placeholder to store row data while the modal is open
 let pendingDeleteItemId = null;
+let pendingDeleteSaleOrderId = null;
 
 // UPDATED: Opens the themed verification modal window instead of using browser confirm()
 function deleteMatrixItemRow(id, label) {
@@ -677,6 +900,63 @@ function deleteMatrixItemRow(id, label) {
     setTimeout(() => {
         yesBtn.focus();
     }, 50);
+}
+
+// NEW: Opens the themed verification modal window for sales records
+function deleteSaleRecord(orderId) {
+    pendingDeleteSaleOrderId = orderId;
+
+    const modal = document.getElementById("confirm-delete-modal");
+    const messageEl = document.getElementById("delete-modal-message");
+    const yesBtn = document.getElementById("confirm-delete-yes-btn");
+
+    if (!modal || !yesBtn) return;
+
+    if (messageEl) {
+        messageEl.innerText = `Are you sure you want to permanently delete sale record ${orderId} from the sales ledger?`;
+    }
+
+    yesBtn.onclick = function() {
+        executeDeleteSaleRecord(orderId);
+    };
+
+    modal.classList.remove("hidden");
+
+    setTimeout(() => {
+        yesBtn.focus();
+    }, 50);
+}
+
+// NEW: Processes the actual network erasure execution sequence for sales records
+async function executeDeleteSaleRecord(orderId) {
+    closeDeleteModal();
+    updateStatus("busy", "Removing sales record from ledger...");
+
+    const payload = {
+        action: "deleteSale",
+        orderId: orderId
+    };
+
+    if (API_URL === "APP_SCRIPT_URL_PLACEHOLDER" || API_URL.includes("MOCK_CONTEXT")) {
+        salesData = salesData.filter(sale => String(sale.order_id) !== String(orderId));
+        renderSalesTable();
+        updateStatus("ready", "Simulation Connected");
+        return;
+    }
+
+    try {
+        await fetch(API_URL, {
+            method: 'POST',
+            redirect: 'follow',
+            body: JSON.stringify(payload)
+        });
+
+        await fetchSalesRecords();
+    } catch (error) {
+        console.error("Delete sale record exception trace: ", error);
+        updateStatus("error", "Sales delete failed");
+        alert("Failed communicating target sales record deletion upstream.");
+    }
 }
 
 // NEW: Processes the actual network erasure execution sequence
@@ -717,6 +997,7 @@ function closeDeleteModal() {
     const modal = document.getElementById("confirm-delete-modal");
     if (modal) modal.classList.add("hidden");
     pendingDeleteItemId = null;
+    pendingDeleteSaleOrderId = null;
 }
 
 // Sets the target row ID to editing mode and re-renders
@@ -853,7 +1134,7 @@ async function fetchDatabaseRows() {
     }
 
     try {
-        const response = await fetch(`${API_URL}?action=getData`);
+        const response = await fetch(`${API_URL}?action=pricelist`);
         const jsonResult = await response.json();
         
         appData = jsonResult;
@@ -863,6 +1144,60 @@ async function fetchDatabaseRows() {
     } catch (err) {
         console.error("Retrieval Matrix Error Context: ", err);
         updateStatus("error", "Data load timeout failure");
+    }
+}
+
+async function fetchSalesRecords() {
+    // Fallback production simulation data if no real App Script URL is bound
+    if (API_URL === "APP_SCRIPT_URL_PLACEHOLDER") {
+        salesData = [
+            { sale_ts: "2026-07-01 09:15:22", order_id: "P2P-984321", product: "Document Print (Black & White - A4 Short)", base_price: 2.00, quantity: 50, total_pd: 100.00 },
+            { sale_ts: "2026-07-01 11:42:10", order_id: "P2P-984322", product: "Sticker Sheet (Full CMYK Color - A4 Size)", base_price: 45.00, quantity: 10, total_pd: 450.00 },
+            { sale_ts: "2026-07-02 14:05:05", order_id: "P2P-984323", product: "Photo Print (High Gloss Color - 4R Size)", base_price: 15.00, quantity: 4, total_pd: 60.00 }
+        ];
+        renderSalesTable();
+        updateStatus("ready", "Simulation Sales Logs Connected");
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}?action=sales`);
+        
+        // 1. Log the exact raw status text from the server
+        // console.log("HTTP Response Status:", response.status, response.statusText);
+        
+        const jsonResult = await response.json();
+        
+        // 2. DIAGNOSTIC: See what the Google Apps Script actually wrapped your array inside
+        // console.log("CRITICAL DIAGNOSTIC - Raw JSON result received:", jsonResult);
+
+        // 3. FIXED OBJECT UNWRAPPING ROUTINE:
+        if (Array.isArray(jsonResult)) {
+            salesData = jsonResult;
+        } else if (jsonResult && Array.isArray(jsonResult.data)) {
+            salesData = jsonResult.data;
+        } else if (jsonResult && Array.isArray(jsonResult.records)) {
+            salesData = jsonResult.records;
+        } else if (jsonResult && typeof jsonResult === 'object') {
+            // If the script sent an object where one of the keys holds your rows, 
+            // find the first key that contains an array and extract it.
+            const foundKey = Object.keys(jsonResult).find(key => Array.isArray(jsonResult[key]));
+            if (foundKey) {
+                salesData = jsonResult[foundKey];
+                // console.log(`Extracted array automatically from property key: "${foundKey}"`);
+            } else {
+                salesData = [];
+                // console.error("An object was received, but no array property could be found inside it.");
+            }
+        } else {
+            salesData = [];
+        }
+        
+        renderSalesTable();
+        updateStatus("ready", "Connected");
+    } catch (err) {
+        console.error("Retrieval Sales Log Error Context: ", err);
+        updateStatus("error", "Sales ledger retrieval failure");
     }
 }
 
@@ -1000,6 +1335,7 @@ async function manualDatabaseRefresh() {
         // Re-execute your global database pull routines
         // This function fetches your spreadsheet data and calls renderPricingTable() + renderPOSDropdown()
         await fetchDatabaseRows(); 
+        await fetchSalesRecords();
         
     } catch (error) {
         console.error("Manual sync handshake broken: ", error);
@@ -1117,4 +1453,5 @@ document.addEventListener("DOMContentLoaded", () => {
 
     startLiveClock();
     fetchDatabaseRows();
+    fetchSalesRecords();
 });
