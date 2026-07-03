@@ -63,7 +63,8 @@ let salesData = [];
 let intendedPageTarget = "pos-page";
 // State boundaries tracking matrix table pagination controls
 let currentMatrixPage = 1;
-let itemsPerPageLimit = 10; // Default fallback view threshold configuration
+let itemsPerPageLimit = 10; // Default fallback view threshold configuration for pricing matrix
+let salesItemsPerPageLimit = 10; // Default fallback view threshold configuration for sales list
 
 // Helper function to dynamically alter status display variables
 function updateStatus(state, message) {
@@ -589,15 +590,15 @@ function renderSalesTable() {
 
     // Calculate structural pagination slicing bounds metrics
     const totalItemsCount = filteredSalesList.length;
-    const totalPagesCount = Math.ceil(totalItemsCount / itemsPerPageLimit) || 1;
+    const totalPagesCount = Math.ceil(totalItemsCount / salesItemsPerPageLimit) || 1;
     
     // Ensure active page pointer doesn't fall out-of-bounds after deleting records
     if (currentSalesPage > totalPagesCount) {
         currentSalesPage = totalPagesCount;
     }
 
-    const startIndex = (currentSalesPage - 1) * itemsPerPageLimit;
-    const endIndex = startIndex + itemsPerPageLimit;
+    const startIndex = (currentSalesPage - 1) * salesItemsPerPageLimit;
+    const endIndex = startIndex + salesItemsPerPageLimit;
     const paginatedItemsList = filteredSalesList.slice(startIndex, endIndex);
 
     // If no data exists, display a clean fallback placeholder row
@@ -650,7 +651,7 @@ function renderSalesTable() {
 
     // 2. Render the dynamic Pagination Button Controls layout area
     if (paginationControls) {
-        if (totalItemsCount <= itemsPerPageLimit) {
+        if (totalItemsCount <= salesItemsPerPageLimit) {
             // Hide pagination controls entirely if all records fit comfortably on one page
             paginationControls.innerHTML = "";
             paginationControls.style.borderTop = "none";
@@ -677,7 +678,7 @@ function renderSalesTable() {
 // 3. Companion function to switch pages inside the sales ledger
 function changeSalesPage(targetPage) {
     const filteredSalesList = getFilteredSalesList();
-    const totalPagesCount = Math.ceil(filteredSalesList.length / itemsPerPageLimit) || 1;
+    const totalPagesCount = Math.ceil(filteredSalesList.length / salesItemsPerPageLimit) || 1;
     
     if (targetPage < 1 || targetPage > totalPagesCount) return;
     
@@ -1267,15 +1268,17 @@ function closeSuccessModal() {
 // NEW: Opens display limit popup setting focus metrics safely
 function openSettingsModal() {
     const modal = document.getElementById("settings-config-modal");
-    const inputField = document.getElementById("settings-per-page-input");
-    if (!modal || !inputField) return;
+    const pricingInput = document.getElementById("settings-per-page-input");
+    const salesInput = document.getElementById("settings-per-page-sales-input");
+    if (!modal || !pricingInput || !salesInput) return;
 
-    inputField.value = itemsPerPageLimit;
+    pricingInput.value = itemsPerPageLimit;
+    salesInput.value = salesItemsPerPageLimit;
     modal.classList.remove("hidden");
 
     setTimeout(() => {
-        inputField.focus();
-        inputField.select();
+        pricingInput.focus();
+        pricingInput.select();
     }, 50);
 }
 
@@ -1287,20 +1290,25 @@ function closeSettingsModal() {
 
 // NEW: Saves pagination variables resetting tracking index pointers securely
 function saveSettingsModalConfiguration() {
-    const inputField = document.getElementById("settings-per-page-input");
-    if (!inputField) return;
+    const pricingInput = document.getElementById("settings-per-page-input");
+    const salesInput = document.getElementById("settings-per-page-sales-input");
+    if (!pricingInput || !salesInput) return;
 
-    const parsedLimit = parseInt(inputField.value, 10);
-    if (isNaN(parsedLimit) || parsedLimit < 1) {
-        alert("Configuration Input Error: Please supply a valid row threshold number count of 1 or greater.");
+    const parsedPricingLimit = parseInt(pricingInput.value, 10);
+    const parsedSalesLimit = parseInt(salesInput.value, 10);
+    if (isNaN(parsedPricingLimit) || parsedPricingLimit < 1 || isNaN(parsedSalesLimit) || parsedSalesLimit < 1) {
+        alert("Configuration Input Error: Please supply valid row threshold numbers of 1 or greater for both pricing and sales.");
         return;
     }
 
-    itemsPerPageLimit = parsedLimit;
+    itemsPerPageLimit = parsedPricingLimit;
+    salesItemsPerPageLimit = parsedSalesLimit;
     currentMatrixPage = 1; // Always snap back to page 1 safely to protect slicing indices boundary rules
+    currentSalesPage = 1;
     
     closeSettingsModal();
     renderPricingTable(); // Instantly trigger the table rendering system
+    renderSalesTable();
 }
 
 // NEW: Triggers a full manual pull request syncing POS dropdown choices & Pricing matrices
